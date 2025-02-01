@@ -45,8 +45,15 @@ namespace MyApi.Controllers
                 .Find(lm => lm.UserId == parsedUserId)
                 .ToListAsync();
 
+            // Map the LifeMons to the output model
+            var lifeMonsOutput = lifeMons.Select(lm => new {
+                Id = lm.Id.ToString(),
+                UserId = lm.UserId.ToString(),
+                Name = lm.Name,
+            });
+
             // Return the LifeMons
-            return Ok(lifeMons);
+            return Ok(lifeMonsOutput);
         }
 
         [HttpPost("login")]
