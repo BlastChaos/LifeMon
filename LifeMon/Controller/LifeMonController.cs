@@ -24,10 +24,29 @@ namespace MyApi.Controllers
         }
 
         // GET: api/myapi/5
-        [HttpGet("{id}")]
-        public IActionResult Get(int id)
+        [HttpGet("lifemons/{userId}")]
+        public async Task<IActionResult> GetLifeMons(string userId)
         {
-            return Ok(new { Message = $"You requested ID: {id}" });
+            // Validate the user ID
+            if (!ObjectId.TryParse(userId, out _))
+                return BadRequest("User ID is not a valid ObjectId.");
+
+            var parsedUserId = ObjectId.Parse(userId);
+
+            // Check if the user ID exists in the Users collection
+            var usersCollection = _database.GetCollection<User>("Users");
+            var userExists = await usersCollection.Find(u => u.Id == parsedUserId).AnyAsync();
+            if (!userExists)
+                return NotFound("User ID does not exist.");
+
+            // Get the user's LifeMons from the database
+            var lifeMonsCollection = _database.GetCollection<LifeMon>("LifeMons");
+            var lifeMons = await lifeMonsCollection
+                .Find(lm => lm.UserId == parsedUserId)
+                .ToListAsync();
+
+            // Return the LifeMons
+            return Ok(lifeMons);
         }
 
         [HttpPost("login")]
