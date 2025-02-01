@@ -203,8 +203,8 @@ namespace MyApi.Controllers
             return Ok(new { Message = "Team created or updated successfully." });
         }
 
-        [HttpGet("teams/{userId}/names")]
-        public async Task<IActionResult> GetTeamNamesAsync(string userId)
+        [HttpGet("teams/{userId}")]
+        public async Task<IActionResult> GetTeamsAsync(string userId)
         {
             if (!ObjectId.TryParse(userId, out _))
                 return BadRequest("User ID is not a valid ObjectId.");
@@ -212,40 +212,19 @@ namespace MyApi.Controllers
             var userObjectId = ObjectId.Parse(userId);
 
             var teamsCollection = _database.GetCollection<Team>("Teams");
-            var teams = await teamsCollection.Find(t => t.UserId == userObjectId).Project(t => t.Name).ToListAsync();
-
-            return Ok(teams);
-        }
-
-        [HttpGet("teams/{userId}/{name}")]
-        public async Task<IActionResult> GetTeamByNameAsync(string userId, string name)
-        {
-            if (!ObjectId.TryParse(userId, out _))
-                return BadRequest("User ID is not a valid ObjectId.");
-
-            var userObjectId = ObjectId.Parse(userId);
-
-            var teamsCollection = _database.GetCollection<Team>("Teams");
-            var team = await teamsCollection
-                .Find(t => t.UserId == userObjectId && t.Name == name)
-                .FirstOrDefaultAsync();
-
-            if (team == null)
-                return NotFound("Team not found.");
-
-            var lifeMonsCollection = _database.GetCollection<LifeMon>("LifeMons");
-            var lifeMons = await lifeMonsCollection
-                .Find(lm => team.LifeMons.Contains(lm.Name))
+            var teams = await teamsCollection
+                .Find(t => t.UserId == userObjectId)
                 .ToListAsync();
 
-            var lifeMonsOutput = lifeMons.Select(lm => new
+            var teamsOutput = teams.Select(t => new
             {
-                Id = lm.Id.ToString(),
-                UserId = userId,
-                Name = lm.Name,
+                Id = t.Id.ToString(),
+                UserId = t.UserId.ToString(),
+                Name = t.Name,
+                LifeMons = t.LifeMons
             });
 
-            return Ok(lifeMonsOutput);
+            return Ok(teamsOutput);
         }
 
         [HttpDelete("teams/{userId}/{name}")]
