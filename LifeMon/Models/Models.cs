@@ -25,6 +25,20 @@ public class LifeMon
     public required string Name { get; set; }
 }
 
+public class Team
+{
+    [BsonId]
+    public ObjectId Id { get; set; }
+    
+    [BsonElement("userId")]
+    public required ObjectId UserId { get; set; }
+    
+    [BsonElement("name")]
+    public required string Name { get; set; }
+    
+    [BsonElement("lifemons")]
+    public required List<ObjectId> LifeMons { get; set; }
+}
 
 
 
@@ -42,6 +56,12 @@ public class LifeMonInfo
 }
 
 
+public class TeamInfo
+{
+    public required string UserId { get; set; }
+    public required string Name { get; set; }
+    public required string[] LifeMonNames { get; set; }
+}
 
 
 public class LifeMonBattle
@@ -65,15 +85,3 @@ public enum TurnType
     Change = 1,
     Surrender = 2
 }
-
-
-
-
-
-
-
-
-
-
-
-

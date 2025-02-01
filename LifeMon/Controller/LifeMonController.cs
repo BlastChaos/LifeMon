@@ -16,11 +16,51 @@ namespace MyApi.Controllers
             _database = database;
         }
 
-        // GET: api/myapi
-        [HttpGet]
-        public IActionResult Get()
+        [HttpPost("register")]
+        public async Task<IActionResult> Register([FromBody] UserInfo model)
         {
-            return Ok(new { Message = "Hello, World!" });
+            if (string.IsNullOrEmpty(model.Username) || string.IsNullOrEmpty(model.Password))
+                return BadRequest("Username and password are required.");
+
+            var collection = _database.GetCollection<User>("Users");
+
+            // Check if the username already exists
+            var existingUser = await collection.Find(u => u.Username == model.Username).FirstOrDefaultAsync();
+            if (existingUser != null)
+                return Conflict("Username already exists.");
+
+            // Hash the password
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(model.Password);
+
+            // Create the new user
+            var user = new User
+            {
+                Username = model.Username,
+                Password = hashedPassword
+            };
+
+            // Insert the user into the database
+            await collection.InsertOneAsync(user);
+
+            return Ok(new { Message = "User registered successfully." });
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> LoginAsync([FromBody] UserInfo loginRequest)
+        {
+            var usersCollection = _database.GetCollection<User>("Users");
+
+            // Find user by username
+            var user = await usersCollection.Find(u => u.Username == loginRequest.Username).FirstOrDefaultAsync();
+
+            // Check if user exists and password matches
+            if (user == null || BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password) == false)
+            {
+                return Unauthorized("Invalid username or password.");
+            }
+
+            // Return user ID if authentication is successful
+            return Ok(new { UserId = user.Id.ToString() });
         }
 
         // GET: api/myapi/5
@@ -54,53 +94,6 @@ namespace MyApi.Controllers
 
             // Return the LifeMons
             return Ok(lifeMonsOutput);
-        }
-
-        [HttpPost("login")]
-        public async Task<IActionResult> LoginAsync([FromBody] UserInfo loginRequest)
-        {
-            var usersCollection = _database.GetCollection<User>("Users");
-
-            // Find user by username
-            var user = await usersCollection.Find(u => u.Username == loginRequest.Username).FirstOrDefaultAsync();
-
-            // Check if user exists and password matches
-            if (user == null || BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password) == false)
-            {
-                return Unauthorized("Invalid username or password.");
-            }
-
-            // Return user ID if authentication is successful
-            return Ok(new { UserId = user.Id.ToString() });
-        }
-
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] UserInfo model)
-        {
-            if (string.IsNullOrEmpty(model.Username) || string.IsNullOrEmpty(model.Password))
-                return BadRequest("Username and password are required.");
-
-            var collection = _database.GetCollection<User>("Users");
-
-            // Check if the username already exists
-            var existingUser = await collection.Find(u => u.Username == model.Username).FirstOrDefaultAsync();
-            if (existingUser != null)
-                return Conflict("Username already exists.");
-
-            // Hash the password
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(model.Password);
-
-            // Create the new user
-            var user = new User
-            {
-                Username = model.Username,
-                Password = hashedPassword
-            };
-
-            // Insert the user into the database
-            await collection.InsertOneAsync(user);
-
-            return Ok(new { Message = "User registered successfully." });
         }
 
         [HttpPost("lifemons")]
@@ -154,6 +147,35 @@ namespace MyApi.Controllers
                 return Ok(new { Message = "LifeMon deleted successfully." });
             else
                 return NotFound("LifeMon not found.");
+        }
+
+        
+        [HttpPost("teams")]
+        public async Task<IActionResult> CreateTeamAsync([FromBody] TeamInfo teamInfo)
+        {
+            if (string.IsNullOrWhiteSpace(teamInfo.Name))
+                return BadRequest("Team name is required.");
+
+            if (teamInfo.LifeMonNames == null || teamInfo.LifeMonNames.Length == 0)
+                return BadRequest("List of LifeMons is required.");
+
+            var lifeMonsCollection = _database.GetCollection<LifeMon>("LifeMons");
+            var lifeMons = await lifeMonsCollection.Find(lm => teamInfo.LifeMonNames.Contains(lm.Name)).ToListAsync();
+
+            if (lifeMons.Count != teamInfo.LifeMonNames.Length)
+                return BadRequest("Some LifeMons do not exist.");
+
+            var team = new Team
+            {
+                UserId = ObjectId.Parse(teamInfo.UserId),
+                Name = teamInfo.Name,
+                LifeMons = lifeMons.Select(lm => lm.Id).ToList(),
+            };
+
+            var teamsCollection = _database.GetCollection<Team>("Teams");
+            await teamsCollection.InsertOneAsync(team);
+
+            return Ok(new { Message = "Team created successfully." });
         }
     }
 }
