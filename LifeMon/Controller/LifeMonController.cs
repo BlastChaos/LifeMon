@@ -177,5 +177,36 @@ namespace MyApi.Controllers
 
             return Ok(new { Message = "Team created successfully." });
         }
+
+        [HttpGet("teams/{userId}/{name}")]
+        public async Task<IActionResult> GetTeamByNameAsync(string userId, string name)
+        {
+            if (!ObjectId.TryParse(userId, out _))
+                return BadRequest("User ID is not a valid ObjectId.");
+
+            var userObjectId = ObjectId.Parse(userId);
+
+            var teamsCollection = _database.GetCollection<Team>("Teams");
+            var team = await teamsCollection
+                .Find(t => t.UserId == userObjectId && t.Name == name)
+                .FirstOrDefaultAsync();
+
+            if (team == null)
+                return NotFound("Team not found.");
+
+            var lifeMonsCollection = _database.GetCollection<LifeMon>("LifeMons");
+            var lifeMons = await lifeMonsCollection
+                .Find(lm => team.LifeMons.Contains(lm.Id))
+                .ToListAsync();
+
+            var lifeMonsOutput = lifeMons.Select(lm => new {
+                Id = lm.Id.ToString(),
+                UserId = lm.UserId.ToString(),
+                Name = lm.Name,
+            });
+
+            return Ok(lifeMonsOutput);
+        }
+
     }
 }
