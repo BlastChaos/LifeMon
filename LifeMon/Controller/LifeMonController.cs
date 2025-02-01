@@ -1,5 +1,6 @@
 using BCrypt.Net;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace MyApi.Controllers
@@ -76,11 +77,33 @@ namespace MyApi.Controllers
             return Ok(new { Message = "User registered successfully." });
         }
 
-        // DELETE: api/myapi/5
-        [HttpDelete("{id}")]
-        public IActionResult Delete(int id)
+        [HttpPost("addLifeMon")]
+        public async Task<IActionResult> AddLifeMonAsync([FromBody] LifeMonInfo lifeMonInfo)
         {
-            return NoContent(); // Example: Delete logic here
+            if (!ObjectId.TryParse(lifeMonInfo.UserId, out _))
+                return BadRequest("User ID is not a valid ObjectId.");
+
+            // Check if the user ID exists in the Users collection
+            var userObjectId = ObjectId.Parse(lifeMonInfo.UserId);
+            var usersCollection = _database.GetCollection<User>("Users");
+            var userExists = await usersCollection.Find(u => u.Id == userObjectId).AnyAsync();
+            if (!userExists)
+                return NotFound("User ID does not exist.");
+
+            var collection = _database.GetCollection<LifeMon>("LifeMons");
+            var existingLifeMon = await collection.Find(lm => lm.Name == lifeMonInfo.Name).FirstOrDefaultAsync();
+            if (existingLifeMon != null)
+                return Conflict("LifeMon with the same name already exists.");
+
+            var lifeMon = new LifeMon
+            {
+                UserId = userObjectId,
+                Name = lifeMonInfo.Name,
+            };
+
+            await collection.InsertOneAsync(lifeMon);
+
+            return Ok(new { Message = "LifeMon added successfully." });
         }
     }
 }
