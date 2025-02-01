@@ -1,0 +1,6 @@
+@LifeMon_HostAddress = http://localhost:5252
+
+GET {{LifeMon_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
