@@ -143,10 +143,16 @@ namespace MyApi.Controllers
 
             var result = await collection.DeleteOneAsync(filter);
 
-            if (result.IsAcknowledged && result.DeletedCount == 1)
-                return Ok(new { Message = "LifeMon deleted successfully." });
-            else
+            if (!result.IsAcknowledged || result.DeletedCount == 0)
                 return NotFound("LifeMon not found.");
+
+            // Remove the LifeMon from teams if it is present
+            var teamsCollection = _database.GetCollection<Team>("Teams");
+            var filterTeams = Builders<Team>.Filter.ElemMatch(t => t.LifeMons, lm => lm == name);
+            var updateTeams = Builders<Team>.Update.PullFilter(t => t.LifeMons, lm => lm == name);
+            await teamsCollection.UpdateManyAsync(filterTeams, updateTeams);
+
+            return Ok(new { Message = "LifeMon deleted successfully." });
         }
 
         
@@ -169,7 +175,7 @@ namespace MyApi.Controllers
             {
                 UserId = ObjectId.Parse(teamInfo.UserId),
                 Name = teamInfo.Name,
-                LifeMons = lifeMons.Select(lm => lm.Id).ToList(),
+                LifeMons = lifeMons.Select(lm => lm.Name).ToList(),
             };
 
             var teamsCollection = _database.GetCollection<Team>("Teams");
@@ -219,7 +225,7 @@ namespace MyApi.Controllers
 
             var lifeMonsCollection = _database.GetCollection<LifeMon>("LifeMons");
             var lifeMons = await lifeMonsCollection
-                .Find(lm => team.LifeMons.Contains(lm.Id))
+                .Find(lm => team.LifeMons.Contains(lm.Name))
                 .ToListAsync();
 
             var lifeMonsOutput = lifeMons.Select(lm => new {

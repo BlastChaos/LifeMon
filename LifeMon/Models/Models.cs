@@ -37,7 +37,7 @@ public class Team
     public required string Name { get; set; }
     
     [BsonElement("lifemons")]
-    public required List<ObjectId> LifeMons { get; set; }
+    public required List<string> LifeMons { get; set; }
 }
 
 
