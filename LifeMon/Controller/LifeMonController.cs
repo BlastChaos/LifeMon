@@ -103,7 +103,7 @@ namespace MyApi.Controllers
             return Ok(new { Message = "User registered successfully." });
         }
 
-        [HttpPost("addLifeMon")]
+        [HttpPost("lifemons")]
         public async Task<IActionResult> AddLifeMonAsync([FromBody] LifeMonInfo lifeMonInfo)
         {
             if (!ObjectId.TryParse(lifeMonInfo.UserId, out _))
@@ -130,6 +130,30 @@ namespace MyApi.Controllers
             await collection.InsertOneAsync(lifeMon);
 
             return Ok(new { Message = "LifeMon added successfully." });
+        }
+
+        
+        [HttpDelete("lifemons/{userId}/{name}")]
+        public async Task<IActionResult> DeleteLifeMonAsync(string userId, string name)
+        {
+            if (!ObjectId.TryParse(userId, out _))
+                return BadRequest("User ID is not a valid ObjectId.");
+
+            var userObjectId = ObjectId.Parse(userId);
+
+            var collection = _database.GetCollection<LifeMon>("LifeMons");
+
+            var filter = Builders<LifeMon>.Filter.And(
+                Builders<LifeMon>.Filter.Eq(lm => lm.UserId, userObjectId),
+                Builders<LifeMon>.Filter.Eq(lm => lm.Name, name)
+            );
+
+            var result = await collection.DeleteOneAsync(filter);
+
+            if (result.IsAcknowledged && result.DeletedCount == 1)
+                return Ok(new { Message = "LifeMon deleted successfully." });
+            else
+                return NotFound("LifeMon not found.");
         }
     }
 }
