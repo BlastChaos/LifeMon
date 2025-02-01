@@ -3,13 +3,15 @@ using Microsoft.AspNetCore.SignalR;
 public class BattleHub : Hub
 {
     private static readonly List<string> waitingPlayers = [];
-    private static readonly List<LifeMonBattle> pokemonBattles = [];
+    private static readonly List<BattleInfo> pokemonBattles = [];
 
     // Method for players to log in and wait
     public async Task Login(string playerId)
     {
+
+
         waitingPlayers.Add(playerId);
-        Console.WriteLine(waitingPlayers.Count);
+        Console.WriteLine(Context.ConnectionId);
 
         // Try to find a match
         if (waitingPlayers.Count >= 2)
@@ -37,42 +39,146 @@ public class BattleHub : Hub
             await Clients.All.SendAsync("WaitingForMatch");
         }
     }
-
 
 
 
     // Method for players to log in and wait
-    public async Task TakeTurn(string playerId)
+    public async Task TakeTurn(string playerId, TurnType turnType, string pokemonId, string? newPokemonId, string? attackId)
     {
-        waitingPlayers.Add(playerId);
-        Console.WriteLine(waitingPlayers.Count);
 
-        // Try to find a match
-        if (waitingPlayers.Count >= 2)
+        //If he surrenders, tell everyone
+        if (turnType == TurnType.Surrender)
         {
-            var player1 = waitingPlayers[0];
-            var player2 = waitingPlayers[1];
-            waitingPlayers.RemoveAt(0);
-            waitingPlayers.RemoveAt(0);
-
-            // Notify the players they have been matched
-
-
-            //get pokemon info and team
+            await Clients.All.SendAsync("Surrender", playerId);
+        }
 
 
 
-            await Clients.All.SendAsync("MatchFound", player2);
-            await Clients.All.SendAsync("MatchFound", player1);
+        //1- take the record concerned
+        var pokemonBattle = pokemonBattles.FirstOrDefault((pok) => pok.Player1Id == playerId || pok.Player2Id == playerId);
+
+
+        if (pokemonBattle is null)
+        {
+            return;
+        }
+
+
+        //2- vérifier si c'Est un new turn (les 2 users ont jouée ce tour)
+        Turn? turn = pokemonBattle.Turns.LastOrDefault();
+
+
+        if (turn is null || (turn.Player1Turn is not null && turn.Player2Turn is not null))
+        {
+            turn = new Turn();
+            var turnsList = pokemonBattle.Turns.ToList();
+            turnsList.Add(turn);
+            pokemonBattle.Turns = [.. turnsList];
+        }
+
+
+        //3- fais les jouer leur tour
+        if (playerId == pokemonBattle.Player1Id)
+        {
+            turn.Player1Turn = new TurnInfo
+            {
+                PlayerId = playerId,
+                PokemonId = pokemonId,
+                AttackId = attackId,
+                TurnType = turnType,
+                NewPokemonId = newPokemonId
+            };
         }
         else
         {
-            // Notify the player they are waiting
-            await Clients.All.SendAsync("WaitingForMatch");
+            turn.Player2Turn = new TurnInfo
+            {
+                PlayerId = playerId,
+                PokemonId = pokemonId,
+                AttackId = attackId,
+                TurnType = turnType,
+                NewPokemonId = newPokemonId
+            };
+        }
+
+
+        //4- Si l'autre personne a joué, attend. Sinon, joue le tour et avertie les 2 personnes
+        if (turn.Player1Turn is not null && turn.Player2Turn is not null)
+        {
+            await MakeTurn(pokemonBattle, turn.Player1Turn, turn.Player2Turn);
+        }
+        else
+        {
+            await Clients.All.SendAsync("WaitingForPlayer", pokemonBattle.Player1Id, pokemonBattle.Player2Id);
         }
     }
 
 
 
+
+
+
+
+
+
+    public async Task MakeTurn(BattleInfo pokemonBattle, TurnInfo turnInfoPlayer1, TurnInfo turnInfoPlayer2)
+    {
+        //1- Vérifier si un user change de pokemon
+
+        if (turnInfoPlayer1.TurnType == TurnType.Change && turnInfoPlayer1.NewPokemonId is not null)
+        {
+            var lifemon = pokemonBattle.Player1LifeMons.First((lif) => lif.IsInTheGame);
+            lifemon.IsInTheGame = false;
+            var newLifemon = pokemonBattle.Player1LifeMons.First((lif) => lif.Lifemon.Id.ToString() == turnInfoPlayer1.NewPokemonId);
+        }
+
+        if (turnInfoPlayer2.TurnType == TurnType.Change && turnInfoPlayer2.NewPokemonId is not null)
+        {
+            var lifemon = pokemonBattle.Player2LifeMons.First((lif) => lif.IsInTheGame);
+            lifemon.IsInTheGame = false;
+            var newLifemon = pokemonBattle.Player2LifeMons.First((lif) => lif.Lifemon.Id.ToString() == turnInfoPlayer2.NewPokemonId);
+        }
+
+        var lifeMonPlayer1 = pokemonBattle.Player1LifeMons.First((lif) => lif.IsInTheGame);
+        var lifeMonPlayer2 = pokemonBattle.Player2LifeMons.First((lif) => lif.IsInTheGame);
+
+
+        //2- Vérifier qui attack en premier
+        var firstPlayer = lifeMonPlayer1.Lifemon.Speed > lifeMonPlayer2.Lifemon.Speed
+            ? new { LifeMon = lifeMonPlayer1, canPlay = turnInfoPlayer1.TurnType != TurnType.Change }
+            : new { LifeMon = lifeMonPlayer2, canPlay = turnInfoPlayer2.TurnType != TurnType.Change };
+
+        var secondPlayer = lifeMonPlayer1.Lifemon.Speed > lifeMonPlayer2.Lifemon.Speed
+            ? new { LifeMon = lifeMonPlayer2, canPlay = turnInfoPlayer2.TurnType != TurnType.Change }
+            : new { LifeMon = lifeMonPlayer1, canPlay = turnInfoPlayer1.TurnType != TurnType.Change };
+
+
+
+
+        //3- Laisser le premier attaquer s'il peut
+        if (firstPlayer.canPlay)
+        {
+            secondPlayer.LifeMon.Lifemon.Hp -= firstPlayer.LifeMon.Lifemon.Attack;
+            if (secondPlayer.LifeMon.Lifemon.Hp <= 0)
+            {
+                secondPlayer.LifeMon.IsDead = true;
+            }
+        }
+
+        //4- Laisser le deuxième attaquer s'il peut
+        if (secondPlayer.canPlay && !secondPlayer.LifeMon.IsDead)
+        {
+            firstPlayer.LifeMon.Lifemon.Hp -= secondPlayer.LifeMon.Lifemon.Attack;
+            if (firstPlayer.LifeMon.Lifemon.Hp <= 0)
+            {
+                firstPlayer.LifeMon.IsDead = true;
+            }
+        }
+
+        await Clients.All.SendAsync("Turn", pokemonBattle.Player1Id, pokemonBattle.Player2Id, pokemonBattle);
+
+
+
+    }
 
 }

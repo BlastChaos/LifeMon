@@ -86,7 +86,8 @@ namespace MyApi.Controllers
                 .ToListAsync();
 
             // Map the LifeMons to the output model
-            var lifeMonsOutput = lifeMons.Select(lm => new {
+            var lifeMonsOutput = lifeMons.Select(lm => new
+            {
                 Id = lm.Id.ToString(),
                 UserId = lm.UserId.ToString(),
                 Name = lm.Name,
@@ -114,10 +115,16 @@ namespace MyApi.Controllers
             if (existingLifeMon != null)
                 return Conflict("LifeMon with the same name already exists.");
 
+
+            Random random = new();
+            int randomInt = random.Next(1, 101); // Between 1 and 100
             var lifeMon = new LifeMon
             {
                 UserId = userObjectId,
                 Name = lifeMonInfo.Name,
+                Attack = 10,
+                Hp = 2,
+                Speed = randomInt
             };
 
             await collection.InsertOneAsync(lifeMon);
@@ -125,7 +132,7 @@ namespace MyApi.Controllers
             return Ok(new { Message = "LifeMon added successfully." });
         }
 
-        
+
         [HttpDelete("lifemons/{userId}/{name}")]
         public async Task<IActionResult> DeleteLifeMonAsync(string userId, string name)
         {
@@ -155,7 +162,7 @@ namespace MyApi.Controllers
             return Ok(new { Message = "LifeMon deleted successfully." });
         }
 
-        
+
         [HttpPost("teams")]
         public async Task<IActionResult> CreateTeamAsync([FromBody] TeamInfo teamInfo)
         {
@@ -231,7 +238,8 @@ namespace MyApi.Controllers
                 .Find(lm => team.LifeMons.Contains(lm.Name))
                 .ToListAsync();
 
-            var lifeMonsOutput = lifeMons.Select(lm => new {
+            var lifeMonsOutput = lifeMons.Select(lm => new
+            {
                 Id = lm.Id.ToString(),
                 UserId = userId,
                 Name = lm.Name,
