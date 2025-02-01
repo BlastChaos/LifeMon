@@ -217,5 +217,27 @@ namespace MyApi.Controllers
             return Ok(lifeMonsOutput);
         }
 
+        [HttpDelete("teams/{userId}/{name}")]
+        public async Task<IActionResult> DeleteTeamAsync(string userId, string name)
+        {
+            if (!ObjectId.TryParse(userId, out _))
+                return BadRequest("User ID is not a valid ObjectId.");
+
+            var userObjectId = ObjectId.Parse(userId);
+
+            var teamsCollection = _database.GetCollection<Team>("Teams");
+
+            var filter = Builders<Team>.Filter.And(
+                Builders<Team>.Filter.Eq(t => t.UserId, userObjectId),
+                Builders<Team>.Filter.Eq(t => t.Name, name)
+            );
+
+            var result = await teamsCollection.DeleteOneAsync(filter);
+
+            if (result.IsAcknowledged && result.DeletedCount == 1)
+                return Ok(new { Message = "Team deleted successfully." });
+            else
+                return NotFound("Team not found.");
+        }
     }
 }
