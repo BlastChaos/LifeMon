@@ -165,6 +165,9 @@ namespace MyApi.Controllers
             if (teamInfo.LifeMonNames == null || teamInfo.LifeMonNames.Length == 0)
                 return BadRequest("List of LifeMons is required.");
 
+            if (!ObjectId.TryParse(teamInfo.UserId, out _))
+                return BadRequest("User ID is not a valid ObjectId.");
+
             var lifeMonsCollection = _database.GetCollection<LifeMon>("LifeMons");
             var lifeMons = await lifeMonsCollection.Find(lm => teamInfo.LifeMonNames.Contains(lm.Name)).ToListAsync();
 
@@ -230,7 +233,7 @@ namespace MyApi.Controllers
 
             var lifeMonsOutput = lifeMons.Select(lm => new {
                 Id = lm.Id.ToString(),
-                UserId = lm.UserId.ToString(),
+                UserId = userId,
                 Name = lm.Name,
             });
 
