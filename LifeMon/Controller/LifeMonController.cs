@@ -187,6 +187,20 @@ namespace MyApi.Controllers
             return Ok(new { Message = "Team created or updated successfully." });
         }
 
+        [HttpGet("teams/{userId}/names")]
+        public async Task<IActionResult> GetTeamNamesAsync(string userId)
+        {
+            if (!ObjectId.TryParse(userId, out _))
+                return BadRequest("User ID is not a valid ObjectId.");
+
+            var userObjectId = ObjectId.Parse(userId);
+
+            var teamsCollection = _database.GetCollection<Team>("Teams");
+            var teams = await teamsCollection.Find(t => t.UserId == userObjectId).Project(t => t.Name).ToListAsync();
+
+            return Ok(teams);
+        }
+
         [HttpGet("teams/{userId}/{name}")]
         public async Task<IActionResult> GetTeamByNameAsync(string userId, string name)
         {
