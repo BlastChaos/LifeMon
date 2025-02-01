@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
 
@@ -26,6 +23,19 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+builder.Services.AddSignalR();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
@@ -39,10 +49,17 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+app.MapHub<BattleHub>("/matchmaking");
+
 
 app.UseAuthorization();
 
+app.UseRouting();
+
+
 app.MapControllers();
+
+app.UseCors("AllowAll");
+
 
 app.Run();
