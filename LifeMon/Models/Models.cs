@@ -115,3 +115,10 @@ public enum TurnType
     Change = 1,
     Surrender = 2
 }
+
+
+public class Waiting
+{
+    public required string ConnectionId { get; set; }
+    public required string UserId { get; set; }
+}

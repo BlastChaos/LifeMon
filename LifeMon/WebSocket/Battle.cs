@@ -1,17 +1,28 @@
 using Microsoft.AspNetCore.SignalR;
+using MongoDB.Driver;
 
 public class BattleHub : Hub
 {
-    private static readonly List<string> waitingPlayers = [];
-    private static readonly List<BattleInfo> pokemonBattles = [];
+
+    private static readonly List<Waiting> waitingPlayers = [];
+    private static readonly List<BattleInfo> lifeMonBattles = [];
+    private readonly IMongoDatabase _database;
+
+    public BattleHub(IMongoDatabase database)
+    {
+        _database = database;
+    }
 
     // Method for players to log in and wait
     public async Task Login(string playerId)
     {
 
 
-        waitingPlayers.Add(playerId);
-        Console.WriteLine(Context.ConnectionId);
+        waitingPlayers.Add(new Waiting
+        {
+            ConnectionId = Context.ConnectionId,
+            UserId = playerId
+        });
 
         // Try to find a match
         if (waitingPlayers.Count >= 2)
@@ -26,17 +37,57 @@ public class BattleHub : Hub
 
             //get pokemon info and team
 
+            var teamsCollection = _database.GetCollection<Team>("Teams");
+            var lifeMonCollection = _database.GetCollection<LifeMon>("LifeMons");
+
+            var player1Team = await teamsCollection
+                .Find(t => t.UserId.ToString() == player1.UserId)
+                .FirstOrDefaultAsync();
+
+            var player2Team = await teamsCollection
+                .Find(t => t.UserId.ToString() == player2.UserId)
+                .FirstOrDefaultAsync();
+
+            var player1LifeMons = await lifeMonCollection
+                .Find(lm => player1Team.LifeMons.Contains(lm.Id.ToString()))
+                .ToListAsync();
 
 
+            var player2LifeMons = await lifeMonCollection
+                .Find(lm => player1Team.LifeMons.Contains(lm.Id.ToString()))
+                .ToListAsync();
+
+            BattleInfo battleInfo = new()
+            {
+                Player1Id = player1.UserId,
+                Player2Id = player2.UserId,
+                Turns = [],
+                Player1LifeMons = [.. player1LifeMons.Select((t, index) => new LifeMonBattle
+                {
+                    AttackBoost = 0,
+                    DefenseBoost = 0,
+                    IsDead = false,
+                    Lifemon = t,
+                    IsInTheGame = index == 0,
+                })],
+                Player2LifeMons = [.. player2LifeMons.Select((t, index) => new LifeMonBattle
+                {
+                    AttackBoost = 0,
+                    DefenseBoost = 0,
+                    IsDead = false,
+                    Lifemon = t,
+                    IsInTheGame = index == 0,
+                })],
+            };
 
 
-            await Clients.All.SendAsync("MatchFound", player2);
-            await Clients.All.SendAsync("MatchFound", player1);
+            await Clients.Client(player1.ConnectionId).SendAsync("MatchFound", player2);
+            await Clients.Client(player2.ConnectionId).SendAsync("MatchFound", player1);
         }
         else
         {
             // Notify the player they are waiting
-            await Clients.All.SendAsync("WaitingForMatch");
+            await Clients.Client(Context.ConnectionId).SendAsync("WaitingForMatch");
         }
     }
 
@@ -55,7 +106,7 @@ public class BattleHub : Hub
 
 
         //1- take the record concerned
-        var pokemonBattle = pokemonBattles.FirstOrDefault((pok) => pok.Player1Id == playerId || pok.Player2Id == playerId);
+        var pokemonBattle = lifeMonBattles.FirstOrDefault((pok) => pok.Player1Id == playerId || pok.Player2Id == playerId);
 
 
         if (pokemonBattle is null)
@@ -115,6 +166,16 @@ public class BattleHub : Hub
 
 
 
+    // You can also implement a Disconnect method to remove players from the waiting list on disconnect
+    public override Task OnDisconnectedAsync(Exception? exception)
+    {
+        var connectionId = Context.ConnectionId;
+
+
+
+
+        return base.OnDisconnectedAsync(exception);
+    }
 
 
 
