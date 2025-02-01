@@ -173,9 +173,18 @@ namespace MyApi.Controllers
             };
 
             var teamsCollection = _database.GetCollection<Team>("Teams");
-            await teamsCollection.InsertOneAsync(team);
 
-            return Ok(new { Message = "Team created successfully." });
+            var filter = Builders<Team>.Filter.And(
+                Builders<Team>.Filter.Eq(t => t.UserId, team.UserId),
+                Builders<Team>.Filter.Eq(t => t.Name, team.Name)
+            );
+            var update = Builders<Team>.Update
+                .Set(t => t.Name, team.Name)
+                .Set(t => t.LifeMons, team.LifeMons);
+
+            await teamsCollection.UpdateOneAsync(filter, update, new UpdateOptions { IsUpsert = true });
+
+            return Ok(new { Message = "Team created or updated successfully." });
         }
 
         [HttpGet("teams/{userId}/{name}")]
