@@ -2,7 +2,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using BCrypt.Net;
-using DotnetGeminiSDK.Client.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
@@ -15,16 +14,14 @@ namespace MyApi.Controllers
     public class LifeMonController : ControllerBase
     {
         private readonly IMongoDatabase _database;
-        private readonly IGeminiClient _geminiClient;
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
 
 
 
-        public LifeMonController(IMongoDatabase database, IGeminiClient geminiClient, HttpClient httpClient, IOptions<GeminiSettings> options)
+        public LifeMonController(IMongoDatabase database, HttpClient httpClient, IOptions<GeminiSettings> options)
         {
             _database = database;
-            _geminiClient = geminiClient;
             _httpClient = httpClient;
             _apiKey = options.Value.ApiKey;
         }

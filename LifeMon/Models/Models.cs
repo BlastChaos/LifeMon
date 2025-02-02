@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using DotnetGeminiSDK.Model;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
@@ -18,7 +17,6 @@ public class User
 public class ImageRequest
 {
     public required string Base64Image { get; set; }
-    public required ImageMimeType MimeType { get; set; }
 
     public required string UserId
     {
