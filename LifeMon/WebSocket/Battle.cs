@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 public class BattleHub : Hub
@@ -48,40 +49,39 @@ public class BattleHub : Hub
                 .Find(t => t.UserId.ToString() == player2.UserId)
                 .FirstOrDefaultAsync();
 
-            //var player1LifeMons = await lifeMonCollection
-            //    .Find(lm => player1Team.LifeMons.Contains(lm.Id.ToString()))
-            //    .ToListAsync;
 
-            //var player2LifeMons = await lifeMonCollection
-            //    .Find(lm => player1Team.LifeMons.Contains(lm.Id.ToString()))
-            //    .ToListAsync();
+            BattleInfo battleInfo = new()
+            {
+                Player1Id = player1.UserId,
+                Connection1Id = player1.ConnectionId,
+                Connection2Id = player2.ConnectionId,
+                Player2Id = player2.UserId,
+                Turns = [],
+                Player1LifeMons = [.. player1Team.LifeMons.Select((t, index) => new LifeMonBattle
+               {
+                   AttackBoost = 0,
+                   DefenseBoost = 0,
+                   IsDead = false,
+                   CurrentHp = t.Hp,
+                   Lifemon = t,
+                   IsInTheGame = index == 0,
+               })],
+                Player2LifeMons = [.. player2Team.LifeMons.Select((t, index) => new LifeMonBattle
+               {
+                   AttackBoost = 0,
+                   DefenseBoost = 0,
+                   IsDead = false,
+                    CurrentHp = t.Hp,
+                   Lifemon = t,
+                   IsInTheGame = index == 0,
+               })],
+            };
 
-            //BattleInfo battleInfo = new()
-            //{
-            //    Player1Id = player1.UserId,
-            //    Player2Id = player2.UserId,
-            //    Turns = [],
-            //    Player1LifeMons = [.. player1LifeMons.Select((t, index) => new LifeMonBattle
-            //    {
-            //        AttackBoost = 0,
-            //        DefenseBoost = 0,
-            //        IsDead = false,
-            //        Lifemon = t,
-            //        IsInTheGame = index == 0,
-            //    })],
-            //    Player2LifeMons = [.. player2LifeMons.Select((t, index) => new LifeMonBattle
-            //    {
-            //        AttackBoost = 0,
-            //        DefenseBoost = 0,
-            //        IsDead = false,
-            //        Lifemon = t,
-            //        IsInTheGame = index == 0,
-            //    })],
-            //};
+            lifeMonBattles.Add(battleInfo);
 
 
-            await Clients.Client(player1.ConnectionId).SendAsync("MatchFound", player2);
-            await Clients.Client(player2.ConnectionId).SendAsync("MatchFound", player1);
+            await Clients.Client(player1.ConnectionId).SendAsync("MatchFound", player2.UserId);
+            await Clients.Client(player2.ConnectionId).SendAsync("MatchFound", player1.UserId);
         }
         else
         {
@@ -93,19 +93,14 @@ public class BattleHub : Hub
 
 
     // Method for players to log in and wait
-    public async Task TakeTurn(string playerId, TurnType turnType, string pokemonId, string? newPokemonId, string? attackId)
+    public async Task TakeTurn(string playerId, TurnType turnType, ObjectId pokemonId, string? newPokemonId, string? attackId)
     {
-
-        //If he surrenders, tell everyone
-        if (turnType == TurnType.Surrender)
-        {
-            await Clients.All.SendAsync("Surrender", playerId);
-        }
-
-
 
         //1- take the record concerned
         var pokemonBattle = lifeMonBattles.FirstOrDefault((pok) => pok.Player1Id == playerId || pok.Player2Id == playerId);
+
+        Console.WriteLine(pokemonBattle is null);
+
 
 
         if (pokemonBattle is null)
@@ -114,7 +109,20 @@ public class BattleHub : Hub
         }
 
 
-        //2- vérifier si c'Est un new turn (les 2 users ont jouée ce tour)
+        //If he surrenders, tell everyone
+        if (turnType == TurnType.Surrender)
+        {
+            var connectionWin = pokemonBattle.Connection1Id != Context.ConnectionId ? pokemonBattle.Connection1Id : pokemonBattle.Connection2Id;
+            await Clients.Client(connectionWin).SendAsync("Win");
+            await Clients.Client(Context.ConnectionId).SendAsync("Lose");
+            return;
+        }
+
+
+
+
+
+        //2- vérifier si c'est un new turn (les 2 users ont jouée ce tour)
         Turn? turn = pokemonBattle.Turns.LastOrDefault();
 
 
@@ -159,21 +167,70 @@ public class BattleHub : Hub
         }
         else
         {
-            await Clients.All.SendAsync("WaitingForPlayer", pokemonBattle.Player1Id, pokemonBattle.Player2Id);
+            await Clients.Client(Context.ConnectionId).SendAsync("WaitingForPlayer", pokemonBattle.Player1Id, pokemonBattle.Player2Id);
+        }
+    }
+
+
+
+    // Method for players to log in and wait
+    public async Task Forfeit()
+    {
+
+        //1- take the record concerned
+        var pokemonBattle = lifeMonBattles.FirstOrDefault((pok) => pok.Connection1Id == Context.ConnectionId || pok.Player2Id == Context.ConnectionId);
+
+        Console.WriteLine(pokemonBattle is null);
+
+        if (pokemonBattle is null)
+        {
+            return;
+        }
+
+        var connectionWin = pokemonBattle.Connection1Id != Context.ConnectionId ? pokemonBattle.Connection1Id : pokemonBattle.Connection2Id;
+        await Clients.Client(connectionWin).SendAsync("Win");
+        await Clients.Client(Context.ConnectionId).SendAsync("Lose");
+        return;
+    }
+
+
+
+    // Method for players to log in and wait
+    public async Task GetBattleInfo()
+    {
+        var battleInfo = lifeMonBattles.FirstOrDefault((r) => r.Connection2Id == Context.ConnectionId || r.Connection1Id == Context.ConnectionId);
+
+
+
+
+        if (battleInfo is not null)
+        {
+            await Clients.Client(battleInfo.Connection1Id).SendAsync("BattleInfo", battleInfo);
+            await Clients.Client(battleInfo.Connection2Id).SendAsync("BattleInfo", battleInfo);
+
         }
     }
 
 
 
     // You can also implement a Disconnect method to remove players from the waiting list on disconnect
-    public override Task OnDisconnectedAsync(Exception? exception)
+    public async override Task OnDisconnectedAsync(Exception? exception)
     {
         var connectionId = Context.ConnectionId;
 
+        waitingPlayers.RemoveAll(e => e.ConnectionId == connectionId);
 
+        var matchInProgress = lifeMonBattles.Find(e => e.Connection1Id == connectionId || e.Connection2Id == connectionId);
+        if (matchInProgress is not null)
+        {
+            var connection1 = matchInProgress.Connection1Id;
+            var connection2 = matchInProgress.Connection2Id;
+            lifeMonBattles.RemoveAll(e => e.Connection1Id == connectionId || e.Connection2Id == connectionId);
+            await Clients.Client(connection1).SendAsync("Win");
+            await Clients.Client(connection2).SendAsync("Win");
 
-
-        return base.OnDisconnectedAsync(exception);
+        }
+        await base.OnDisconnectedAsync(exception);
     }
 
 
@@ -218,8 +275,8 @@ public class BattleHub : Hub
         //3- Laisser le premier attaquer s'il peut
         if (firstPlayer.canPlay)
         {
-            secondPlayer.LifeMon.Lifemon.Hp -= firstPlayer.LifeMon.Lifemon.Attack;
-            if (secondPlayer.LifeMon.Lifemon.Hp <= 0)
+            secondPlayer.LifeMon.CurrentHp -= firstPlayer.LifeMon.Lifemon.Attack;
+            if (secondPlayer.LifeMon.CurrentHp <= 0)
             {
                 secondPlayer.LifeMon.IsDead = true;
             }
@@ -228,8 +285,8 @@ public class BattleHub : Hub
         //4- Laisser le deuxième attaquer s'il peut
         if (secondPlayer.canPlay && !secondPlayer.LifeMon.IsDead)
         {
-            firstPlayer.LifeMon.Lifemon.Hp -= secondPlayer.LifeMon.Lifemon.Attack;
-            if (firstPlayer.LifeMon.Lifemon.Hp <= 0)
+            firstPlayer.LifeMon.CurrentHp -= secondPlayer.LifeMon.Lifemon.Attack;
+            if (firstPlayer.LifeMon.CurrentHp <= 0)
             {
                 firstPlayer.LifeMon.IsDead = true;
             }

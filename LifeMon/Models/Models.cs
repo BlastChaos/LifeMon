@@ -147,6 +147,7 @@ public class LifeMonBattle
 {
     public required LifeMon Lifemon { get; set; }
     public required bool IsDead { get; set; }
+    public required int CurrentHp { get; set; }
     public required int? AttackBoost { get; set; }
     public required int? DefenseBoost { get; set; }
     public required bool IsInTheGame { get; set; }
@@ -157,6 +158,9 @@ public class BattleInfo
 {
     public required string Player1Id { get; set; }
     public required string Player2Id { get; set; }
+
+    public required string Connection1Id { get; set; }
+    public required string Connection2Id { get; set; }
     public required LifeMonBattle[] Player1LifeMons { get; set; }
     public required LifeMonBattle[] Player2LifeMons { get; set; }
     public required Turn[] Turns { get; set; }
@@ -174,7 +178,7 @@ public class TurnInfo
 {
     public required string PlayerId { get; set; }
     public required TurnType TurnType { get; set; }
-    public required string PokemonId { get; set; }
+    public required ObjectId PokemonId { get; set; }
     public required string? AttackId { get; set; }
     public required string? NewPokemonId { get; set; }
 }
