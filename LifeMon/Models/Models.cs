@@ -21,6 +21,9 @@ public class LifeMon
     [BsonElement("userId")]
     public required ObjectId UserId { get; set; }
 
+    [BsonElement("image")]
+    public required string Image { get; set; }
+
     [BsonElement("name")]
     public required string Name { get; set; }
 
@@ -99,6 +102,8 @@ public class LifeMonInfo
 {
     public required string UserId { get; set; }
     public required string Name { get; set; }
+
+    public required string Image { get; set; }
 
     public required int Speed { get; set; }
 

@@ -175,6 +175,7 @@ namespace MyApi.Controllers
             {
                 UserId = userObjectId,
                 Name = lifeMonInfo.Name,
+                Image = lifeMonInfo.Image,
                 Attack = lifeMonInfo.Attack,
                 Hp = lifeMonInfo.Hp,
                 Speed = lifeMonInfo.Speed,
