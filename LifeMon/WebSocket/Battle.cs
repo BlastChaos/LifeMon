@@ -99,7 +99,6 @@ public class BattleHub : Hub
         //1- take the record concerned
         var pokemonBattle = lifeMonBattles.FirstOrDefault((pok) => pok.Player1Id == playerId || pok.Player2Id == playerId);
 
-        Console.WriteLine(pokemonBattle is null);
 
 
 
@@ -181,7 +180,6 @@ public class BattleHub : Hub
         //1- take the record concerned
         var pokemonBattle = lifeMonBattles.FirstOrDefault((pok) => pok.Connection1Id == Context.ConnectionId || pok.Player2Id == Context.ConnectionId);
 
-        Console.WriteLine(pokemonBattle is null);
 
         if (pokemonBattle is null)
         {
@@ -196,6 +194,73 @@ public class BattleHub : Hub
 
 
 
+    // Method for players to log in and wait
+    public async Task Attack(string moveName)
+    {
+
+        //1- take the record concerned
+        var pokemonBattle = lifeMonBattles.FirstOrDefault((pok) => pok.Connection1Id == Context.ConnectionId || pok.Player2Id == Context.ConnectionId);
+
+
+        if (pokemonBattle is null)
+        {
+            return;
+        }
+
+
+        //2- vérifier si c'est un new turn (les 2 users ont jouée ce tour)
+        Turn? turn = pokemonBattle.Turns.LastOrDefault();
+
+
+        if (turn is null || (turn.Player1Turn is not null && turn.Player2Turn is not null))
+        {
+            turn = new Turn();
+            var turnsList = pokemonBattle.Turns.ToList();
+            turnsList.Add(turn);
+            pokemonBattle.Turns = [.. turnsList];
+        }
+
+
+
+
+        //3- fais les jouer leur tour
+        if (Context.ConnectionId == pokemonBattle.Connection1Id)
+        {
+            turn.Player1Turn = new TurnInfo
+            {
+                PlayerId = pokemonBattle.Player1Id,
+                PokemonId = pokemonBattle.Player1LifeMons.FirstOrDefault(t => t.IsInTheGame).Lifemon.Id,
+                AttackId = moveName,
+                TurnType = TurnType.Attack,
+                NewPokemonId = null
+            };
+        }
+        else
+        {
+            turn.Player2Turn = new TurnInfo
+            {
+                PlayerId = pokemonBattle.Player2Id,
+                PokemonId = pokemonBattle.Player2LifeMons.FirstOrDefault(t => t.IsInTheGame).Lifemon.Id,
+                AttackId = moveName,
+                TurnType = TurnType.Attack,
+                NewPokemonId = null
+            };
+        }
+
+
+        //4- Si l'autre personne a joué, attend. Sinon, joue le tour et avertie les 2 personnes
+        if (turn.Player1Turn is not null && turn.Player2Turn is not null)
+        {
+            await MakeTurn(pokemonBattle, turn.Player1Turn, turn.Player2Turn);
+        }
+        else
+        {
+            await Clients.Client(Context.ConnectionId).SendAsync("WaitingForPlayer", pokemonBattle.Player1Id, pokemonBattle.Player2Id);
+        }
+    }
+
+
+
 
     // Method for players to log in and wait
     public async Task Switch(string pokemonId)
@@ -204,7 +269,6 @@ public class BattleHub : Hub
         //1- take the record concerned
         var pokemonBattle = lifeMonBattles.FirstOrDefault((pok) => pok.Connection1Id == Context.ConnectionId || pok.Player2Id == Context.ConnectionId);
 
-        Console.WriteLine(pokemonBattle is null);
 
         if (pokemonBattle is null)
         {
@@ -268,6 +332,9 @@ public class BattleHub : Hub
     {
         //1- Vérifier si un user change de pokemon
 
+
+
+        Console.WriteLine("TURN IN PROGRESS");
         if (turnInfoPlayer1.TurnType == TurnType.Change && turnInfoPlayer1.NewPokemonId is not null)
         {
             var lifemon = pokemonBattle.Player1LifeMons.First((lif) => lif.IsInTheGame);
@@ -318,9 +385,8 @@ public class BattleHub : Hub
             }
         }
 
-        await Clients.All.SendAsync("Turn", pokemonBattle.Player1Id, pokemonBattle.Player2Id, pokemonBattle);
-
-
+        await Clients.Client(pokemonBattle.Connection1Id).SendAsync("BattleInfo", pokemonBattle);
+        await Clients.Client(pokemonBattle.Connection2Id).SendAsync("BattleInfo", pokemonBattle);
 
     }
 
