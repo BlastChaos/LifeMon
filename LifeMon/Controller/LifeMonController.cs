@@ -1,6 +1,10 @@
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using BCrypt.Net;
 using DotnetGeminiSDK.Client.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
 
@@ -12,35 +16,86 @@ namespace MyApi.Controllers
     {
         private readonly IMongoDatabase _database;
         private readonly IGeminiClient _geminiClient;
+        private readonly HttpClient _httpClient;
+        private readonly string _apiKey;
 
-        public LifeMonController(IMongoDatabase database, IGeminiClient geminiClient)
+
+
+        public LifeMonController(IMongoDatabase database, IGeminiClient geminiClient, HttpClient httpClient, IOptions<GeminiSettings> options)
         {
             _database = database;
             _geminiClient = geminiClient;
+            _httpClient = httpClient;
+            _apiKey = options.Value.ApiKey;
         }
 
         [HttpPost("uploadLifeMon")]
         public async Task<IActionResult> UploadLifeMon([FromBody] ImageRequest imageRequest)
         {
             string filePath = "gemini_prompt.txt";
-            try
-            {
-                var message = System.IO.File.ReadAllText(filePath);
-                var response = await _geminiClient.ImagePrompt(message, imageRequest.Base64Image, imageRequest.MimeType);
 
-                if (response == null)
+            string endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={_apiKey}";
+            var message = System.IO.File.ReadAllText(filePath);
+
+            var jsonBody = new
+            {
+                contents = new[]
+                   {
+                new
                 {
-                    return NotFound("Could not generate LifeMon");
+                    role = "user",
+                    parts = new object[]
+                    {
+                        new { text = message },
+                        new { inline_data = new { mime_type = "image/jpeg", data = imageRequest.Base64Image } }
+                    }
                 }
-
-                // TODO : create LifeMon from response
-
-                return Ok(response);
             }
-            catch (Exception ex)
+            };
+
+
+            var content = new StringContent(JsonSerializer.Serialize(jsonBody), Encoding.UTF8, "application/json");
+            var response = await _httpClient.PostAsync(endpoint, content);
+            var result = await response.Content.ReadAsStringAsync();
+
+            var contents = JsonSerializer.Deserialize<Root>(result);
+            var candidate = contents.Candidates.FirstOrDefault();
+
+            var part = candidate.Content.Parts.FirstOrDefault();
+
+            string pattern = @"^```json\s*|\s*```";
+
+            // Apply regex replace to remove the ```json at the start and ``` at the end
+            string resultRegex = Regex.Replace(part.Text, pattern, "");
+
+            var lifeMon = JsonSerializer.Deserialize<LifeMonJson>(resultRegex);
+
+            // var lifeMonFormatted =  new LifeMon();
+
+            LifeMon lifemonFormatted = new LifeMon()
             {
-                return BadRequest(ex.Message);
-            }
+                Attack = Helper.CalculateOtherStat(lifeMon.Attack),
+                Defense = Helper.CalculateOtherStat(lifeMon.Defense),
+                Description = lifeMon.Description,
+                Hp = Helper.CalculateHP(lifeMon.Hp),
+                Image = imageRequest.Base64Image,
+                Move = lifeMon.Move,
+                Name = lifeMon.Name,
+                SpecialAttack = Helper.CalculateOtherStat(lifeMon.SpecialAttack),
+                SpecialDefense = Helper.CalculateOtherStat(lifeMon.SpecialDefense),
+                Species = lifeMon.Species,
+                Speed = Helper.CalculateOtherStat(lifeMon.Speed),
+                Type = lifeMon.Type,
+                UserId = new ObjectId(imageRequest.UserId)
+            };
+
+            var collection = _database.GetCollection<LifeMon>("LifeMons");
+
+            collection.InsertOne(lifemonFormatted);
+
+
+
+            return this.Ok(lifeMon);
         }
 
         [HttpPost("register")]

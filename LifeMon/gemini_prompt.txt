@@ -18,18 +18,18 @@ For example, for Gyarados, it says that it can destroy cities.
 
 You must return a JSON. the result must be like this:
 {
-    species: string
-    name: string
-    hp: integer
-    attack: integer
-    defense: integer
-    specialAttack: integer
-    specialDefense: integer
-    speed: integer
-    description: string
-    type: Type[]
-    move: Move[]
-    nature: Modifier[]
+    Species: string
+    Name: string
+    Hp: integer
+    Attack: integer
+    Defense: integer
+    SpecialAttack: integer
+    SpecialDefense: integer
+    Speed: integer
+    Description: string
+    Type: Type[]
+    Move: Move[]
+    Nature: Modifier[]
 }
 the base stats are in the range of 1 to 255, although those 6 base states must sum up to something between 0 and 1000.
 the weight is in kg
@@ -60,13 +60,13 @@ For the type, you must give me the number and not the string. For example, if th
 
 here's the value for Move
 Move {
-  name: string
-  type: Type
-  power: number
-  accuracy: number
-  category: string (physical or special)
-  description: string
-  pp: number
+  Name: string
+  Type: Type
+  Power: number
+  Accuracy: number
+  Category: string (physical or special)
+  Description: string
+  Pp: number
 }
 
 The move power should be between 80 and 160, moves over 120 power should have lower accuracy, but nothing lower than 70. No status moves, only 4 moves that deal damage.

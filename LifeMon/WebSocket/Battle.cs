@@ -173,6 +173,7 @@ public class BattleHub : Hub
 
 
 
+
     // Method for players to log in and wait
     public async Task Forfeit()
     {
@@ -192,6 +193,31 @@ public class BattleHub : Hub
         await Clients.Client(Context.ConnectionId).SendAsync("Lose");
         return;
     }
+
+
+
+
+    // Method for players to log in and wait
+    public async Task Switch(string pokemonId)
+    {
+
+        //1- take the record concerned
+        var pokemonBattle = lifeMonBattles.FirstOrDefault((pok) => pok.Connection1Id == Context.ConnectionId || pok.Player2Id == Context.ConnectionId);
+
+        Console.WriteLine(pokemonBattle is null);
+
+        if (pokemonBattle is null)
+        {
+            return;
+        }
+
+
+        var connectionWin = pokemonBattle.Connection1Id != Context.ConnectionId ? pokemonBattle.Connection1Id : pokemonBattle.Connection2Id;
+        await Clients.Client(connectionWin).SendAsync("Win");
+        await Clients.Client(Context.ConnectionId).SendAsync("Lose");
+        return;
+    }
+
 
 
 

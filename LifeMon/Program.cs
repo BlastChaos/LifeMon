@@ -1,6 +1,7 @@
 using DotnetGeminiSDK;
 using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
+using MyApi.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +31,12 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1"
     });
 });
+
+builder.Services.AddHttpClient<LifeMonController>();
+
+
+builder.Services.Configure<GeminiSettings>(builder.Configuration.GetSection("GeminiSettings"));
+
 
 builder.Services.AddSignalR();
 
