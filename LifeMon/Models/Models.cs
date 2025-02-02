@@ -32,6 +32,43 @@ public class LifeMon
 
     [BsonElement("attack")]
     public required int Attack { get; set; }
+
+    [BsonElement("species")]
+    public required string Species { get; set; }
+
+    [BsonElement("defense")]
+    public required int Defense { get; set; }
+
+    [BsonElement("specialAttack")]
+    public required int SpecialAttack { get; set; }
+
+    [BsonElement("specialDefense")]
+    public required int SpecialDefense { get; set; }
+
+    [BsonElement("description")]
+    public required string Description { get; set; }
+
+    [BsonElement("type")]
+    public required int Type { get; set; }
+
+    [BsonElement("move")]
+    public required List<Move> Move { get; set; }
+
+}
+
+public class Move
+{
+    public required string Name { get; set; }
+
+    public required int Type { get; set; }
+
+    public int Power { get; set; }
+
+    public int Accuracy { get; set; }
+
+    public required string Category { get; set; }
+
+    public required string Description { get; set; }
 }
 
 public class Team
@@ -62,6 +99,27 @@ public class LifeMonInfo
 {
     public required string UserId { get; set; }
     public required string Name { get; set; }
+
+    public required int Speed { get; set; }
+
+    public required int Hp { get; set; }
+
+    public required int Attack { get; set; }
+
+    public required string Species { get; set; }
+
+    public required int Defense { get; set; }
+
+    public required int SpecialAttack { get; set; }
+
+    public required int SpecialDefense { get; set; }
+
+    public required string Description { get; set; }
+
+    public required int Type { get; set; }
+
+    public required List<Move> Move { get; set; }
+
 }
 
 

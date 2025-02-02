@@ -115,16 +115,20 @@ namespace MyApi.Controllers
             if (existingLifeMon != null)
                 return Conflict("LifeMon with the same name already exists.");
 
-
-            Random random = new();
-            int randomInt = random.Next(1, 101); // Between 1 and 100
             var lifeMon = new LifeMon
             {
                 UserId = userObjectId,
                 Name = lifeMonInfo.Name,
-                Attack = 10,
-                Hp = 2,
-                Speed = randomInt
+                Attack = lifeMonInfo.Attack,
+                Hp = lifeMonInfo.Hp,
+                Speed = lifeMonInfo.Speed,
+                Defense = lifeMonInfo.Defense,
+                SpecialAttack = lifeMonInfo.SpecialAttack,
+                SpecialDefense = lifeMonInfo.SpecialDefense,
+                Species = lifeMonInfo.Species,
+                Description = lifeMonInfo.Description,
+                Type = lifeMonInfo.Type,
+                Move = lifeMonInfo.Move
             };
 
             await collection.InsertOneAsync(lifeMon);
