@@ -91,10 +91,66 @@ namespace MyApi.Controllers
                 Id = lm.Id.ToString(),
                 UserId = lm.UserId.ToString(),
                 Name = lm.Name,
+                Attack = lm.Attack,
+                Hp = lm.Hp,
+                Speed = lm.Speed,
+                Defense = lm.Defense,
+                SpecialAttack = lm.SpecialAttack,
+                SpecialDefense = lm.SpecialDefense,
+                Species = lm.Species,
+                Description = lm.Description,
+                Type = lm.Type,
+                Move = lm.Move,
             });
 
             // Return the LifeMons
             return Ok(lifeMonsOutput);
+        }
+
+        [HttpGet("lifemons/{userId}/{name}")]
+        public async Task<IActionResult> GetLifeMon(string userId, string name)
+        {
+            // Validate the user ID
+            if (!ObjectId.TryParse(userId, out _))
+                return BadRequest("User ID is not a valid ObjectId.");
+
+            var parsedUserId = ObjectId.Parse(userId);
+
+            // Check if the user ID exists in the Users collection
+            var usersCollection = _database.GetCollection<User>("Users");
+            var userExists = await usersCollection.Find(u => u.Id == parsedUserId).AnyAsync();
+            if (!userExists)
+                return NotFound("User ID does not exist.");
+
+            // Get the specified LifeMon from the database
+            var lifeMonsCollection = _database.GetCollection<LifeMon>("LifeMons");
+            var lifeMon = await lifeMonsCollection
+                .Find(lm => lm.UserId == parsedUserId && lm.Name == name)
+                .FirstOrDefaultAsync();
+
+            if (lifeMon == null)
+                return NotFound("LifeMon not found.");
+
+            // Map the LifeMon to the output model
+            var lifeMonOutput = new
+            {
+                Id = lifeMon.Id.ToString(),
+                UserId = lifeMon.UserId.ToString(),
+                Name = lifeMon.Name,
+                Attack = lifeMon.Attack,
+                Hp = lifeMon.Hp,
+                Speed = lifeMon.Speed,
+                Defense = lifeMon.Defense,
+                SpecialAttack = lifeMon.SpecialAttack,
+                SpecialDefense = lifeMon.SpecialDefense,
+                Species = lifeMon.Species,
+                Description = lifeMon.Description,
+                Type = lifeMon.Type,
+                Move = lifeMon.Move,
+            };
+
+            // Return the LifeMon
+            return Ok(lifeMonOutput);
         }
 
         [HttpPost("lifemons")]
