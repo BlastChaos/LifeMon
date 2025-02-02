@@ -1,3 +1,4 @@
+using DotnetGeminiSDK;
 using Microsoft.OpenApi.Models;
 using MongoDB.Driver;
 
@@ -11,6 +12,13 @@ builder.Services.AddSingleton<IMongoClient>(sp =>
     new MongoClient(builder.Configuration.GetConnectionString("MongoDbConnection")));
 builder.Services.AddSingleton(sp =>
     sp.GetRequiredService<IMongoClient>().GetDatabase("LifeMon"));
+
+builder.Services.AddGeminiClient(config =>
+    {
+        config.ApiKey = builder.Configuration.GetConnectionString("GeminiApiKey");
+        config.ImageBaseUrl = "<URL HERE>";
+        config.TextBaseUrl = "<URL HERE>";
+    });
 
 // Register Swagger services
 builder.Services.AddEndpointsApiExplorer();

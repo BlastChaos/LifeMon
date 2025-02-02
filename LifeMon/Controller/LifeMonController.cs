@@ -1,4 +1,5 @@
 using BCrypt.Net;
+using DotnetGeminiSDK.Client.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -10,10 +11,36 @@ namespace MyApi.Controllers
     public class LifeMonController : ControllerBase
     {
         private readonly IMongoDatabase _database;
+        private readonly IGeminiClient _geminiClient;
 
-        public LifeMonController(IMongoDatabase database)
+        public LifeMonController(IMongoDatabase database, IGeminiClient geminiClient)
         {
             _database = database;
+            _geminiClient = geminiClient;
+        }
+
+        [HttpPost("uploadLifeMon")]
+        public async Task<IActionResult> UploadLifeMon([FromBody] ImageRequest imageRequest)
+        {
+            string filePath = "gemini_prompt.txt";
+            try
+            {
+                var message = System.IO.File.ReadAllText(filePath);
+                var response = await _geminiClient.ImagePrompt(message, imageRequest.Base64Image, imageRequest.MimeType);
+
+                if (response == null)
+                {
+                    return NotFound("Could not generate LifeMon");
+                }
+
+                // TODO : create LifeMon from response
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpPost("register")]

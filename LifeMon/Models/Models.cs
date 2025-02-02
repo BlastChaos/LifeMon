@@ -1,3 +1,4 @@
+using DotnetGeminiSDK.Model;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
@@ -11,6 +12,12 @@ public class User
 
     [BsonElement("password")]
     public required string Password { get; set; }
+}
+
+public class ImageRequest
+{
+    public required string Base64Image { get; set; }
+    public required ImageMimeType MimeType { get; set; }
 }
 
 public class LifeMon
