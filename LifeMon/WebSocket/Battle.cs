@@ -48,37 +48,36 @@ public class BattleHub : Hub
                 .Find(t => t.UserId.ToString() == player2.UserId)
                 .FirstOrDefaultAsync();
 
-            var player1LifeMons = await lifeMonCollection
-                .Find(lm => player1Team.LifeMons.Contains(lm.Id.ToString()))
-                .ToListAsync();
+            //var player1LifeMons = await lifeMonCollection
+            //    .Find(lm => player1Team.LifeMons.Contains(lm.Id.ToString()))
+            //    .ToListAsync;
 
+            //var player2LifeMons = await lifeMonCollection
+            //    .Find(lm => player1Team.LifeMons.Contains(lm.Id.ToString()))
+            //    .ToListAsync();
 
-            var player2LifeMons = await lifeMonCollection
-                .Find(lm => player1Team.LifeMons.Contains(lm.Id.ToString()))
-                .ToListAsync();
-
-            BattleInfo battleInfo = new()
-            {
-                Player1Id = player1.UserId,
-                Player2Id = player2.UserId,
-                Turns = [],
-                Player1LifeMons = [.. player1LifeMons.Select((t, index) => new LifeMonBattle
-                {
-                    AttackBoost = 0,
-                    DefenseBoost = 0,
-                    IsDead = false,
-                    Lifemon = t,
-                    IsInTheGame = index == 0,
-                })],
-                Player2LifeMons = [.. player2LifeMons.Select((t, index) => new LifeMonBattle
-                {
-                    AttackBoost = 0,
-                    DefenseBoost = 0,
-                    IsDead = false,
-                    Lifemon = t,
-                    IsInTheGame = index == 0,
-                })],
-            };
+            //BattleInfo battleInfo = new()
+            //{
+            //    Player1Id = player1.UserId,
+            //    Player2Id = player2.UserId,
+            //    Turns = [],
+            //    Player1LifeMons = [.. player1LifeMons.Select((t, index) => new LifeMonBattle
+            //    {
+            //        AttackBoost = 0,
+            //        DefenseBoost = 0,
+            //        IsDead = false,
+            //        Lifemon = t,
+            //        IsInTheGame = index == 0,
+            //    })],
+            //    Player2LifeMons = [.. player2LifeMons.Select((t, index) => new LifeMonBattle
+            //    {
+            //        AttackBoost = 0,
+            //        DefenseBoost = 0,
+            //        IsDead = false,
+            //        Lifemon = t,
+            //        IsInTheGame = index == 0,
+            //    })],
+            //};
 
 
             await Clients.Client(player1.ConnectionId).SendAsync("MatchFound", player2);

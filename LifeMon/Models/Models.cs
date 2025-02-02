@@ -83,7 +83,7 @@ public class Team
     public required string Name { get; set; }
 
     [BsonElement("lifemons")]
-    public required List<string> LifeMons { get; set; }
+    public required List<LifeMon> LifeMons { get; set; }
 }
 
 
@@ -127,7 +127,7 @@ public class TeamInfo
 {
     public required string UserId { get; set; }
     public required string Name { get; set; }
-    public required string[] LifeMonNames { get; set; }
+    public required List<string> LifeMonNames { get; set; }
 }
 
 

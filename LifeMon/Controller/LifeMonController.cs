@@ -215,8 +215,8 @@ namespace MyApi.Controllers
 
             // Remove the LifeMon from teams if it is present
             var teamsCollection = _database.GetCollection<Team>("Teams");
-            var filterTeams = Builders<Team>.Filter.ElemMatch(t => t.LifeMons, lm => lm == name);
-            var updateTeams = Builders<Team>.Update.PullFilter(t => t.LifeMons, lm => lm == name);
+            var filterTeams = Builders<Team>.Filter.ElemMatch(t => t.LifeMons, lm => lm.Name == name);
+            var updateTeams = Builders<Team>.Update.PullFilter(t => t.LifeMons, lm => lm.Name == name);
             await teamsCollection.UpdateManyAsync(filterTeams, updateTeams);
 
             return Ok(new { Message = "LifeMon deleted successfully." });
@@ -229,7 +229,7 @@ namespace MyApi.Controllers
             if (string.IsNullOrWhiteSpace(teamInfo.Name))
                 return BadRequest("Team name is required.");
 
-            if (teamInfo.LifeMonNames == null || teamInfo.LifeMonNames.Length == 0)
+            if (teamInfo.LifeMonNames == null || teamInfo.LifeMonNames.Count == 0)
                 return BadRequest("List of LifeMons is required.");
 
             if (!ObjectId.TryParse(teamInfo.UserId, out _))
@@ -242,14 +242,14 @@ namespace MyApi.Controllers
             );
             var lifeMonDocuments = await lifeMonsCollection.Find(filter).ToListAsync();
 
-            if (lifeMonDocuments.Count != teamInfo.LifeMonNames.Length)
+            if (lifeMonDocuments.Count != teamInfo.LifeMonNames.Count)
                 return BadRequest("Some LifeMons do not exist.");
 
             var team = new Team
             {
                 UserId = ObjectId.Parse(teamInfo.UserId),
                 Name = teamInfo.Name,
-                LifeMons = lifeMonDocuments.Select(lm => lm.Name).ToList(),
+                LifeMons = lifeMonDocuments,
             };
 
             var teamsCollection = _database.GetCollection<Team>("Teams");
@@ -327,7 +327,7 @@ namespace MyApi.Controllers
                 Builders<Team>.Filter.Eq(t => t.UserId, userObjectId),
                 Builders<Team>.Filter.Eq(t => t.Name, name)
             );
-            var update = Builders<Team>.Update.Pull(t => t.LifeMons, lifemonName);
+            var update = Builders<Team>.Update.Pull(t => t.LifeMons.Select(lm => lm.Name), lifemonName);
 
             var result = await teamsCollection.UpdateOneAsync(filter, update);
 
