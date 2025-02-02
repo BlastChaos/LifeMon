@@ -176,21 +176,25 @@ namespace MyApi.Controllers
                 return BadRequest("User ID is not a valid ObjectId.");
 
             var lifeMonsCollection = _database.GetCollection<LifeMon>("LifeMons");
-            var lifeMons = await lifeMonsCollection.Find(lm => teamInfo.LifeMonNames.Contains(lm.Name)).ToListAsync();
+            var filter = Builders<LifeMon>.Filter.And(
+                Builders<LifeMon>.Filter.Eq(lm => lm.UserId, ObjectId.Parse(teamInfo.UserId)),
+                Builders<LifeMon>.Filter.In(lm => lm.Name, teamInfo.LifeMonNames)
+            );
+            var lifeMonDocuments = await lifeMonsCollection.Find(filter).ToListAsync();
 
-            if (lifeMons.Count != teamInfo.LifeMonNames.Length)
+            if (lifeMonDocuments.Count != teamInfo.LifeMonNames.Length)
                 return BadRequest("Some LifeMons do not exist.");
 
             var team = new Team
             {
                 UserId = ObjectId.Parse(teamInfo.UserId),
                 Name = teamInfo.Name,
-                LifeMons = lifeMons.Select(lm => lm.Name).ToList(),
+                LifeMons = lifeMonDocuments.Select(lm => lm.Name).ToList(),
             };
 
             var teamsCollection = _database.GetCollection<Team>("Teams");
 
-            var filter = Builders<Team>.Filter.And(
+            var filterTeams = Builders<Team>.Filter.And(
                 Builders<Team>.Filter.Eq(t => t.UserId, team.UserId),
                 Builders<Team>.Filter.Eq(t => t.Name, team.Name)
             );
@@ -198,7 +202,7 @@ namespace MyApi.Controllers
                 .Set(t => t.Name, team.Name)
                 .Set(t => t.LifeMons, team.LifeMons);
 
-            await teamsCollection.UpdateOneAsync(filter, update, new UpdateOptions { IsUpsert = true });
+            await teamsCollection.UpdateOneAsync(filterTeams, update, new UpdateOptions { IsUpsert = true });
 
             return Ok(new { Message = "Team created or updated successfully." });
         }
